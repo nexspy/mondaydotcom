@@ -1,2 +1,73 @@
 <?php
 
+
+/**
+ * Implements hook_menu()
+ */
+function time_logging_menu() {
+	$items = array();
+	$weight = 0;
+
+    // page : list of task
+	$items['tasks'] = array(
+		'title' => 'Tasks',
+		'page callback' => 'time_logging_page_list',
+		'access callback' => TRUE,
+		'translatable' => TRUE,
+		'weight' => $weight++,
+		'type' => MENU_NORMAL_ITEM,
+	);
+	
+	return $items;
+}
+
+/**
+ * Implements hook_theme()
+ */
+function time_logging_theme($existing, $type, $theme, $path) {
+    $theme_name = 'mondaytheme';
+
+	return array(
+		'tasks-page' => array(
+				'variables' => array('tasks' => null),
+				'template' => 'tasks-page',
+				'path' => drupal_get_path('theme', $theme_name) . '/templates/tasks',
+		),
+	);
+}
+
+/**
+ * Page : list of task
+ */
+function time_logging_page_list() {
+    $tasks = time_get_tasks();
+
+    $html = array(
+		'#theme' => 'tasks-page',
+		'#tasks' => $tasks,
+    );
+    
+    return $html;
+}
+
+/**
+ * Get : list of tasks for logged in user
+ */
+function time_get_tasks() {
+    global $user;
+
+    $query = db_select('node', 'nd')
+        ->fields('nd', array('nid', 'title'))
+        ->condition('type', 'task');
+    
+    $result = $query->execute()->fetchAll();
+
+    $nids = array();
+    foreach ($result as $row) {
+        $nids[] = $row->nid;
+    }
+
+    $nodes = node_load_multiple($nids);
+
+    return $nodes;
+}
