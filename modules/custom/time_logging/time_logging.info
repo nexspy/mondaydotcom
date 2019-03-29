@@ -1,0 +1,10 @@
+name = Time Logging Module
+description = handle time logging for any content like task
+package = Quark
+core = 7.x
+
+files[] = time_logging.install
+files[] = time_logging.module
+
+
+php = 5.2

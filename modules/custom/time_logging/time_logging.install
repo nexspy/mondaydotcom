@@ -1,0 +1,55 @@
+<?php
+
+/**
+ * Implements hook_schema().
+ *
+ */
+function time_logging_schema() {
+	
+    $schema['time_logging'] = array(
+		'description' => 'The base table for recording time logs.',
+		'fields' => array(
+				'id' => array(
+					'description' => 'The primary identifier.',
+					'type' => 'serial',
+					'unsigned' => TRUE,
+					'not null' => TRUE,
+				),
+				'title' => array(
+					'description' => 'Readable Name of the cast.',
+					'type' => 'varchar',
+					'length' => 255,
+					'not null' => TRUE,
+					'default' => '',
+				),
+				'description' => array(
+					'description' => 'The short description of the cast.',
+					'type' => 'text',
+					'size' => 'big',
+					'not null' => TRUE,
+				),
+				'nid' => array(
+					'description' => 'The nid of content.',
+					'type' => 'int',
+					'not null' => TRUE,
+					'default' => 0,
+                ),
+                'nid' => array(
+					'description' => 'The nid of content.',
+					'type' => 'int',
+					'not null' => TRUE,
+					'default' => 0,
+				),
+                'created_at' => array(
+					'description' => 'Last updated timestamp',
+					'type' => 'int',
+					'not null' => TRUE,
+					'default' => 0,
+				),
+			),
+			'primary key' => array('id'),
+	);
+
+	
+	return $schema;
+}
