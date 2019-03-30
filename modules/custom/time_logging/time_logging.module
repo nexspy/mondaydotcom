@@ -17,6 +17,17 @@ function time_logging_menu() {
 		'weight' => $weight++,
 		'type' => MENU_NORMAL_ITEM,
 	);
+
+	// post : saves timelog
+	$items['timelog/save'] = array(
+		'title' => 'Tasks',
+		'page callback' => 'time_logging_post_timelog',
+		'access callback' => TRUE,
+		'translatable' => TRUE,
+		'weight' => $weight++,
+		'type' => MENU_NORMAL_ITEM,
+	);
+	
 	
 	return $items;
 }
@@ -67,7 +78,129 @@ function time_get_tasks() {
         $nids[] = $row->nid;
     }
 
-    $nodes = node_load_multiple($nids);
+	$nodes = node_load_multiple($nids);
+	$nodes = prepare_tasks($nodes);
 
     return $nodes;
+}
+
+/**
+ * Prepare : tasks to use by templates and API
+ */
+function prepare_tasks($nodes) {
+	$result = array();
+
+	foreach ($nodes as $node) {
+		$status = '';
+		$priority = '';
+		$timespent = get_timespent_on_task($node->nid);
+
+		if(isset($node->field_task_status['und'])) {
+			$key = $node->field_task_status['und'][0]['value'];
+			$field = field_info_field('field_task_status');
+			$status = $field['settings']['allowed_values'][$key];
+		}
+
+		if(isset($node->field_task_priority['und'])) {
+			$key = $node->field_task_priority['und'][0]['value'];
+			$field = field_info_field('field_task_priority');
+			$priority = $field['settings']['allowed_values'][$key];
+		}
+
+		$result[] = (object) array(
+			'nid' => $node->nid,
+			'title' => $node->title,
+			'status' => $status,
+			'priority' => $priority,
+			'timespent' => $timespent,
+		);
+	}
+
+	return $result;
+}
+
+/**
+ * Get : get amount of time spent on task
+ */
+function get_timespent_on_task($nid) {
+	$time = 0;
+	$query = db_select('field_data_field_node_id', 'fd')
+		->fields('fd', array('entity_id'))
+		->condition('entity_type', 'node')
+		->condition('bundle', 'time_log')
+		->condition('field_node_id_value', $nid);
+	
+	$result = $query->execute()->fetchAll();
+	$nids = array();
+	foreach ($result as $item) {
+		$nids[] = $item->entity_id;
+	}
+
+	$time_logs = node_load_multiple($nids);
+	foreach ($time_logs as $item) {
+		$time += (isset($item->field_time_time['und'])) ? (int) $item->field_time_time['und'][0]['value'] : 0;
+	}
+	
+	return $time;
+}
+
+/**
+ * Get : class string from text
+ */
+function convert_to_class($string) {
+	// remove all whitespace
+	$string = str_replace(' ', '', $string);
+
+	// get lowercase
+	$string = strtolower($string);
+
+	return $string;
+}
+
+/**
+ * POST : save time log
+ */
+function time_logging_post_timelog() {
+	global $user;
+
+	$nid = (isset($_POST['idx'])) ? (int) $_POST['idx'] : 0;
+	$time = (isset($_POST['timex'])) ? (int) $_POST['timex'] : 0;
+	$result = false;
+
+	if (!$user->uid) {
+		drupal_not_found();
+		drupal_exit();
+	}
+	
+	if ($time && $nid) {
+
+		$node = new stdClass();
+		$node->title = REQUEST_TIME;
+		$node->type = "time_log";
+		// Sets some defaults. Invokes hook_prepare() and hook_node_prepare().
+		node_object_prepare($node); 
+		// Or e.g. 'en' if locale is enabled.
+		$node->language = LANGUAGE_NONE; 
+		$node->uid = $user->uid; 
+		// Status is 1 or 0; published or not.
+		$node->status = 1; 
+		// Promote is 1 or 0; promoted to front page or not.
+		$node->promote = 0; 
+		// Comment is 0, 1, 2; 0 = disabled, 1 = read only, or 2 = read/write.
+		$node->comment = 0; 
+
+		// Fields
+		$node->field_node_id[$node->language][]['value'] = $nid;
+		$node->field_time_time[$node->language][]['value'] = $time;
+
+		$node = node_submit($node); // Prepare node for saving
+		$result = node_save($node);
+	}
+
+	$output = array(
+		'success'=> $result,
+	);
+
+	drupal_json_output($output);
+	drupal_exit();
 }
